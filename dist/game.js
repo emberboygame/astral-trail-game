@@ -1,0 +1,12 @@
+import {Engine} from './engine.js';
+import {Renderer} from './render.js';
+import {UI} from './ui.js';
+const loading=document.createElement('div');loading.className='loading-world';loading.innerHTML='正在准备星轨世界<small>载入立体场景与角色动画…</small><small>拾取车票可以召唤角色和光锥</small>';document.body.append(loading);
+const engine=new Engine();let renderer;try{renderer=new Renderer(document.getElementById('game'),engine);await renderer.ready;}catch(error){loading.innerHTML='画面载入失败<small>请确认浏览器已开启硬件加速，然后刷新重试。</small>';console.error(error);throw error;}loading.remove();const ui=new UI(engine,renderer);if(import.meta.env.DEV){const {attachChecks}=await import('./dev-checks.js');attachChecks(engine,ui);}
+const keys={};const movement=['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','w','a','s','d','W','A','S','D',' '];
+document.addEventListener('keydown',e=>{if(movement.includes(e.key))e.preventDefault();if(engine.modal)return;keys[e.key.toLowerCase()]=true;if(e.repeat)return;if(e.key===' ')engine.dash();if(e.key.toLowerCase()==='e')engine.interact();if(e.key.toLowerCase()==='q')engine.strike();});
+document.addEventListener('keyup',e=>delete keys[e.key.toLowerCase()]);window.addEventListener('blur',()=>{Object.keys(keys).forEach(k=>delete keys[k]);if(!engine.modal)ui.pause();});document.addEventListener('visibilitychange',()=>{if(document.hidden&&!engine.modal)ui.pause();});
+document.getElementById('game').addEventListener('pointerdown',ev=>{if(engine.modal)return;engine.target=renderer.screenToWorld(ev.clientX,ev.clientY);const n=engine.nearInteract();if(n&&Math.hypot(n.x-engine.target.x,n.y-engine.target.y)<50){engine.target=null;engine.interact();}});
+document.getElementById('game').addEventListener('contextmenu',ev=>{ev.preventDefault();engine.strike();});
+let previous=performance.now(),uiTime=0,wasPaused=false;function frame(now){let dt=Math.min(.1,(now-previous)/1000);previous=now;if(engine.modal)Object.keys(keys).forEach(k=>delete keys[k]);let remaining=dt;while(remaining>0){const step=Math.min(.033,remaining);engine.update(step,{left:keys.a||keys.arrowleft,right:keys.d||keys.arrowright,up:keys.w||keys.arrowup,down:keys.s||keys.arrowdown});remaining-=step;}if(!engine.modal||!wasPaused)renderer.draw(dt);wasPaused=!!engine.modal;uiTime+=dt;if(uiTime>.045||engine.events.length){ui.update();uiTime=0;}requestAnimationFrame(frame);}requestAnimationFrame(frame);
+engine.toast('v0.9.3 光锥共鸣已启动。击败敌人升级，暂停三选一；点击穹或伙伴头像查看已获得的光锥。');

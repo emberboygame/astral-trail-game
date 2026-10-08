@@ -1,0 +1,132 @@
+[
+  {
+    "id": 15,
+    "name": "Jingliu",
+    "rarity": 5,
+    "path": "Warrior",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/9/97/Character_Jingliu_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Jingliu_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "15.webp"
+  },
+  {
+    "id": 16,
+    "name": "Blade",
+    "rarity": 5,
+    "path": "Warrior",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/1/16/Character_Blade_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Blade_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "16.webp"
+  },
+  {
+    "id": 17,
+    "name": "Dan Heng • Imbibitor Lunae",
+    "rarity": 5,
+    "path": "Warrior",
+    "imageUrl": "https://raw.githubusercontent.com/Mar-7th/StarRailRes/master/image/character_portrait/1213.png",
+    "sourceUrl": "https://github.com/Mar-7th/StarRailRes",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "17.webp"
+  },
+  {
+    "id": 18,
+    "name": "Topaz & Numby",
+    "rarity": 5,
+    "path": "Rogue",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/9/9d/Character_Topaz_and_Numby_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Topaz_and_Numby_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "18.webp"
+  },
+  {
+    "id": 19,
+    "name": "Dr. Ratio",
+    "rarity": 5,
+    "path": "Rogue",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/5/56/Character_Dr._Ratio_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Dr._Ratio_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "19.webp"
+  },
+  {
+    "id": 20,
+    "name": "Acheron",
+    "rarity": 5,
+    "path": "Warlock",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/7/78/Character_Acheron_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Acheron_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "20.webp"
+  },
+  {
+    "id": 21,
+    "name": "Firefly",
+    "rarity": 5,
+    "path": "Warrior",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/3/38/Character_Firefly_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Firefly_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "21.webp"
+  },
+  {
+    "id": 22,
+    "name": "Feixiao",
+    "rarity": 5,
+    "path": "Rogue",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/6/61/Character_Feixiao_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Feixiao_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "22.webp"
+  },
+  {
+    "id": 23,
+    "name": "The Herta",
+    "rarity": 5,
+    "path": "Mage",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/4/42/Character_The_Herta_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_The_Herta_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "23.webp"
+  },
+  {
+    "id": 24,
+    "name": "Hyacine",
+    "rarity": 5,
+    "path": "Memory",
+    "imageUrl": "https://static.wikia.nocookie.net/houkai-star-rail/images/7/7d/Character_Hyacine_Splash_Art.png/revision/latest/scale-to-width-down/1000",
+    "sourceUrl": "https://honkai-star-rail.fandom.com/wiki/File:Character_Hyacine_Splash_Art.png",
+    "dimensions": [
+      1000,
+      1000
+    ],
+    "localAsset": "24.webp"
+  }
+]

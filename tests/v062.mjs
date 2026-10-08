@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import {Engine} from '../dist/engine.js';
+import {CHARS} from '../dist/data.js';
+import {RevealTiming} from '../dist/reveal-timing.js';
+import {TimingGame,TIMING_SPEED} from '../dist/minigame.js';
+import {GroundEffects} from '../dist/ground-effects.js';
+import * as T from '../dist/vendor/three.module.js';
+let count=0;const test=(name,f)=>{f();count++;console.log('✓ '+name);};
+test('manual inventory summon always binds and opens one reward',()=>{const e=new Engine();e.tickets=1;e.setModal('warp');assert.ok(e.recruit());assert.equal(e.upgrades.length,1);const reward=e.summonReward;e.setModal('reveal');e.close();assert.equal(e.modal,'upgrade');assert.equal(e.upgrades[0],reward);e.chooseUpgrade(0);assert.equal(e.modal,null);});
+test('pickup and summon share one reward, not two; repeated finish cannot grant twice',()=>{const e=new Engine();e.pickupTicket();assert.equal(e.upgrades.length,1);e.recruit();assert.equal(e.upgrades.length,1);e.setModal('reveal');e.finishSummon();e.finishSummon();assert.equal(e.upgrades.length,1);assert.ok(e.upgrades[0].choices.length===3);e.chooseUpgrade(0);assert.equal(e.upgrades.length,0);});
+test('all-collected tickets from any award source queue growth even during minigames',()=>{const e=new Engine();e.owned=CHARS.map(c=>c.id);e.setModal('fish');e.receiveTickets(1);assert.equal(e.modal,'fish');assert.equal(e.upgrades.length,1);e.close();assert.equal(e.modal,'upgrade');e.chooseUpgrade(0);e.receiveTickets(2);assert.equal(e.modal,'upgrade');assert.equal(e.upgrades.length,2);});
+test('early click is retained until full animation, late click succeeds once',()=>{const t=new RevealTiming(0);assert.equal(t.request(100),false);assert.equal(t.requested,true);assert.equal(t.consume(2399),false);assert.equal(t.ready(2400),true);assert.equal(t.consume(2400),true);assert.equal(t.consume(2500),false);});
+test('photo and fish speeds halved and every retry still uses fresh timing',()=>{assert.equal(TIMING_SPEED.photo,1.3);assert.equal(TIMING_SPEED.fish,1.55);for(const type of ['photo','fish']){const m=new TimingGame(type,0),center=Math.PI/2/TIMING_SPEED[type]*1000;assert.equal(m.press(0).success,false);assert.equal(m.press(center).success,true);assert.equal(m.press(center+250).success,false);assert.equal(m.press(center+250+center).success,true);}});
+test('lord ground area equals damage radius, strengthens on impact, waits for delayed strikes',()=>{const e=new Engine(),scene=new T.Scene(),g=new GroundEffects(scene),f={kind:'lord',x:1500,y:700,r:180,life:.7,max:.75,hit:false,color:'#f0ce70'};e.fx=[f,{...f,delay:.3}];g.update(e);assert.equal(g.items.size,1);const mesh=g.items.get(f);assert.equal(mesh.children[0].scale.x,180);assert.equal(mesh.children[0].material.color.getHexString(),'ffe29c');const alpha=mesh.children[0].material.opacity;f.hit=true;g.update(e);assert.ok(mesh.children[0].material.opacity>alpha);});
+console.log(`${count} v0.6.2 regression checks passed.`);

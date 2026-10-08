@@ -1,0 +1,11 @@
+import assert from 'node:assert/strict';
+import {Engine} from '../dist/engine.js';
+import {WORLD,CAMPS,INTERACTS,blocked,spawnCamp} from '../dist/world.js';
+const e=new Engine(()=>.99);assert.equal(e.travel('starfield'),false);assert.equal(e.mapId,'meadow');
+e.quest=2;e.bossDead=true;assert.equal(e.travel('starfield'),false,'must hand in quest');e.quest=3;e.tickets=9;e.members[1].level=4;const team=[...e.team],enemies=e.enemies;const chest='chest1';e.opened.push(chest);
+assert.ok(e.travel('starfield'));assert.equal(WORLD.id,'starfield');assert.equal(CAMPS.length,0);assert.equal(e.enemies.some(a=>a.boss),false);assert.equal(e.tickets,9);assert.deepEqual(e.team,team);assert.equal(e.members[1].level,4);assert.ok(!blocked(e.hero.x,e.hero.y));assert.equal(INTERACTS[0].id,'return');
+let free=0,total=0;for(let x=900;x<4400;x+=100)for(let y=500;y<2950;y+=100){total++;if(!blocked(x,y))free++;}assert.ok(free/total>.98,'open combat field');
+e.hero.x=1800;e.hero.y=1700;e.update(.02);assert.equal(e.trial.started,true);assert.ok(e.trial.spawned>0);const spawned=e.trial.spawned;
+assert.ok(e.travel('meadow'));assert.equal(e.enemies,enemies);assert.ok(e.opened.includes(chest));assert.equal(e.quest,3);assert.equal(WORLD.w,6200);assert.ok(e.travel('starfield'));assert.equal(e.trial.spawned,spawned);assert.equal(e.tickets,9);
+e.hero.inv=0;e.hero.hp=1;e.hurt(500);assert.equal(e.mapId,'meadow');assert.equal(e.hero.hp,e.hero.maxHp);assert.equal(e.hero.x,630);assert.equal(e.members[1].level,4);
+console.log('Map checks passed: quest gate, transfer, open terrain, waves/elites, return state preservation, death returns to town.');

@@ -1,0 +1,28 @@
+import {enemyAttackFactor} from './ascension-combat.js';
+import {trialBossHP,bossAttackInterval} from './balance.js';
+import {WORLD,blocked,move,faceToward} from './world.js';
+export const floorGoal=n=>n===1?200:n===2?500:5000+(n-3)*500;
+export const floorHealth=n=>5**(n-1);
+export const floorSpawnInterval=n=>.65/2**(n-1);
+export const newFloor=(n=1)=>({number:n,goal:floorGoal(n),spawned:0,killed:0,ticketsDropped:0,next:0,started:false,bossSpawned:false,cleared:false});
+function position(e,angle,r=620){const h=e.hero;for(let i=0;i<20;i++){const a=angle+i*.17,x=Math.max(1000,Math.min(WORLD.w-250,h.x+Math.cos(a)*r)),y=Math.max(300,Math.min(WORLD.h-300,h.y+Math.sin(a)*r));if(!blocked(x,y))return {x,y};}return {x:2400,y:1700};}
+export function spawnTrial(e){for(const d of e.drops)d.createdAt??=e.time;e.drops=e.drops.filter(d=>e.time-d.createdAt<240);const f=e.trial??=newFloor();if(!f.started){if(e.hero.x<950)return;f.started=true;e.toast(`第 ${f.number} 层开始：击败 ${f.goal} 名敌人，再挑战首领。`);}if(f.cleared)return;
+ e.enemies=e.enemies.filter(a=>a.hp>0||e.time-(a.deadAt??e.time)<2);
+ if(f.spawned===0)f.next=e.time;
+ if(f.spawned<f.goal&&e.time>=f.next){const interval=floorSpawnInterval(f.number),batches=1+Math.floor((e.time-f.next)/interval);f.next+=batches*interval;const count=Math.min(10*batches,f.goal-f.spawned,90-e.enemies.filter(a=>a.hp>0).length);const kinds=['melee','runner','ranged','brute','charger','bomber','sniper'];for(let i=0;i<count;i++){const index=f.spawned++,kind=kinds[index%Math.min(kinds.length,4+f.number)],p=position(e,(index%4)*Math.PI/2+(e.random()-.5)*.65,540+e.random()*160),hp=Math.round((kind==='brute'?190:kind==='runner'?50:80)*floorHealth(f.number));e.enemies.push({id:`floor-${f.number}-${index}`,trial:true,kind,...p,homeX:p.x,homeY:p.y,hp,maxHp:hp,cd:1+e.random(),slow:0,frozen:0,dot:0,r:kind==='brute'?26:17,damageScale:Math.pow(1.22,f.number-1),speed:kind==='runner'?145:kind==='brute'?55:90,direction:0,cast:0});}}
+ if(f.killed>=f.goal&&!f.bossSpawned){f.bossSpawned=true;const p=position(e,0,420),hp=trialBossHP(f.number);e.enemies.push({id:`floor-boss-${f.number}`,trial:true,boss:true,tier:f.number,kind:'boss',...p,homeX:p.x,homeY:p.y,hp,maxHp:hp,cd:.2,slow:0,frozen:0,dot:0,r:48,damageScale:Math.pow(1.2,f.number-1),pattern:0,cast:0});e.bossAwake=true;e.toast(`第 ${f.number} 层首领降临！留意红色预警。`);}
+}
+export function cancelWarnings(e,host){for(const z of e.zones)if(z.kind==='warning'&&z.host===host){z.life=0;z.resolved=true;}e.zones=e.zones.filter(z=>z.kind!=='warning'||z.host!==host);}
+export function warn(e,a,shape,props,delay=1.3){if(a.hp<=0)return;if(a.boss)delay=Math.max(.65,delay*(a.trial?.68:.78));e.zones.push({kind:'warning',shape,...props,life:delay,max:delay,tick:0,color:'#ff624e',host:a,hitDamage:(props.damage??26)*(a.damageScale||1)});}
+export function hazardContains(z,h){if(z.shape==='line'){const dx=h.x-z.x,dy=h.y-z.y,c=Math.cos(z.angle),s=Math.sin(z.angle);return Math.abs(dx*c+dy*s)<=z.length/2&&Math.abs(-dx*s+dy*c)<z.width/2+12;}return Math.hypot(h.x-z.x,h.y-z.y)<z.r+12;}
+export function updateHazard(e,z){if(z.kind!=='warning')return;if(!z.host||z.host.hp<=0){z.life=0;z.resolved=true;return;}if(z.life>0||z.resolved)return;z.resolved=true;if(z.shape==='blink'){if(!blocked(z.x,z.y)){z.host.x=z.x;z.host.y=z.y;}warn(e,z.host,'circle',{x:z.x,y:z.y,r:125},.85);return;}e.fx.push({kind:'hazardHit',...z,kind:'hazardHit',life:.35,max:.35,color:'#ff9b70'});if(z.hitDamage>0&&hazardContains(z,e.hero))e.hurt(z.hitDamage*enemyAttackFactor(z.host));}
+export function bossAI(e,a,dt){const h=e.hero,d=Math.hypot(a.x-h.x,a.y-h.y);if(d>150)move(a,h.x,h.y,dt,125);faceToward(a,h.x,h.y);a.cd-=dt/(a.frozen>0?1.2:1);if(a.cd>0)return;a.cd=bossAttackInterval(a.tier||1,a.hp<a.maxHp*.5);a.cast=.65;a.attackDir=a.direction;const tier=a.tier||1,k=((a.pattern=a.pattern??0),a.pattern++)%(tier>=3?5:tier>=2?3:2),angle=Math.atan2(h.y-a.y,h.x-a.x);
+ if(k===0)warn(e,a,'circle',{x:h.x,y:h.y,r:125,damage:32});
+ if(k===1)warn(e,a,'line',{x:h.x,y:h.y,angle,length:Math.hypot(WORLD.w,WORLD.h)*2,width:90,damage:38},1.5);
+ if(k===2)for(let i=0;i<7+Math.min(8,tier);i++)warn(e,a,'circle',{x:Math.max(200,Math.min(WORLD.w-200,h.x+(i?e.random()-.5:0)*900)),y:Math.max(200,Math.min(WORLD.h-200,h.y+(i?e.random()-.5:0)*800)),r:70,damage:26,fireRain:true},1+i*.13);
+ if(k===3)warn(e,a,'blink',{x:h.x+Math.cos(angle)*150,y:h.y+Math.sin(angle)*150,r:65},1.1);
+ if(k===4)for(let i=0;i<4;i++)warn(e,a,'line',{x:a.x,y:a.y,angle:angle+i*Math.PI/4,length:Math.hypot(WORLD.w,WORLD.h)*2,width:65,damage:34},1.65);
+}
+export function specialEnemy(e,a,dt){if(!['charger','bomber','sniper'].includes(a.kind))return false;const h=e.hero,d=Math.hypot(a.x-h.x,a.y-h.y);a.cd-=dt;faceToward(a,h.x,h.y);if(a.kind==='sniper'){if(d>520)move(a,h.x,h.y,dt,a.slow?30:65);if(a.cd<=0){a.cd=3.6;warn(e,a,'line',{x:(a.x+h.x)/2,y:(a.y+h.y)/2,angle:Math.atan2(h.y-a.y,h.x-a.x),length:d+150,width:34,damage:18},1.1);}}
+ if(a.kind==='bomber'){if(d>280)move(a,h.x,h.y,dt,a.slow?30:75);if(a.cd<=0){a.cd=3;warn(e,a,'circle',{x:h.x,y:h.y,r:80,damage:20},1.25);}}
+ if(a.kind==='charger'){if(a.charge){a.charge.wait-=dt;if(a.charge.wait<=0){move(a,a.charge.x,a.charge.y,dt,a.slow?180:480);a.charge.life-=dt;if(Math.hypot(a.x-h.x,a.y-h.y)<32)e.hurt(20*a.damageScale*enemyAttackFactor(a));if(a.charge.life<=0)a.charge=null;}}else if(a.cd<=0){a.cd=4;const angle=Math.atan2(h.y-a.y,h.x-a.x);a.charge={x:a.x+Math.cos(angle)*600,y:a.y+Math.sin(angle)*600,wait:1,life:1.3};warn(e,a,'line',{x:a.x+Math.cos(angle)*300,y:a.y+Math.sin(angle)*300,angle,length:600,width:45,damage:0},1);}else move(a,h.x,h.y,dt,a.slow?30:70);}return true;}
