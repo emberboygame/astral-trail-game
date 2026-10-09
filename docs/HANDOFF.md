@@ -1,131 +1,77 @@
-# 开发交接文档
+# 开发交接手册
 
-## 1. 当前产品状态
+## 接手顺序
 
-当前版本为 **v0.9.3**，是一款浏览器端、单人、即时自动战斗的同人游戏原型。核心循环已经成立：探索地图 → 击杀敌人获得经验与车票 → 召唤伙伴/抽取成长牌 → 形成跨角色 Combo → 挑战层级首领。
+先跑 npm ci、npm test、npm run build；再读 RULES、COMBAT、KNOWN_ISSUES。本文对应 v0.9.3，source-manifest.json 给出代码和资源摘要。GitHub 是原项目快照，不具有所有旧提交祖先；旧 SHA 元数据在 HISTORY.md/history.json。
 
-项目没有后端，也没有账号、联网存档和付费系统。刷新页面会重置进度。静态资源约 30 MB，首次加载速度取决于 CDN 与浏览器缓存。
+## 文件职责
 
-## 2. 技术栈和运行方式
+| 模块 | 职责与修改入口 |
+|---|---|
+| game.js | 创建 Engine/Renderer/UI，输入、失焦暂停、requestAnimationFrame |
+| engine.js | 主状态、每帧编排、战斗/伤害、奖励队列、召唤、切图 |
+| data.js / expansion-data.js | 角色基础定义；后者包含新增十人的卡池 |
+| growth.js | 最终卡表、抽池、满池判断、发牌和补给 |
+| combo-cards / gold-evolutions / card-copy / growth-tags | 覆写卡牌机制描述、黄金模式、最终短文案、标签 |
+| growth-combat / gold-combat / combo | 主角和旧伙伴基础技能、黄金持续模式、命中/死亡联动 |
+| expansion-combat | 新角色适配、托帕/医生、宠物、后续追击队列 |
+| ascension-combat | 镜流/刃/饮月/黄泉/流萤/飞霄/大黑塔/风堇新底层 |
+| firefly-combat | 流萤空袭选点、集束/连锁/扫荡伤害和绘制 |
+| world / map-layouts / trial / balance | 地图、碰撞、营地、层级刷怪、首领、数值 |
+| combat-rules / melee-motion / local-combat | 跟随、射程、动画选帧、特殊移动、旧金卡距离 |
+| render / scene-models / software-renderer | Three.js 主绘制、场景模型、无 WebGL2 兼容路径 |
+| gold-render / expansion-render / ground-effects / ice-effects / ticket-effects | 分层特效、冻结、票券表现 |
+| ui / details / minigame / reveal-timing | DOM 窗口、角色详情、小游戏、召唤时序 |
+| dev-checks | 仅开发模式动态导入的检查入口 |
 
-- 原生 JavaScript ES Modules
-- Three.js（仓库内本地 vendor 文件）
-- Canvas 2D 叠加战斗特效与 HUD
-- Vite 负责开发服务器和静态构建
-- Node 内置测试运行器负责逻辑回归测试
-- GitHub Actions + GitHub Pages 负责公开部署
+文件均在 dist/，扩展名 .js。代码大量使用压缩长行；按函数或符号定位，不依赖固定行号。
 
-源码根目录是 `dist/`，这里的命名是历史遗留；它不是构建产物。真正的构建产物是被忽略的 `build/`。
+## 运行链
 
-## 3. 核心数据流
+game.js 每次绘制间隔最多取 0.1 秒，并拆成不超过 0.033 秒的 Engine.update 子步。UI 大约每 0.045 秒刷新一次或遇事件立即刷新。暂停时仍刷新 UI，场景只在进入暂停时绘一帧，不持续重绘背景。
 
-### 游戏循环
+Engine 通过 events 将 toast、refresh、upgrade、warp、chapter、sound 等交给 UI；UI 不应另写一份奖励规则。Renderer 向 engine.combatView 注入实际屏幕边界判断。Node 测试与真实浏览器投影行为不是同一验证范围。
 
-`dist/game.js` 创建 `Engine`、`Renderer` 与 `UI`。每一帧把输入交给 `Engine.update()`，再由渲染器绘制场景和特效，最后按较低频率刷新 UI。弹窗存在时引擎停止推进，避免抽牌期间战斗继续。
+## 关键状态归属
 
-### 角色与战斗
+| 状态 | 所有者 | 保存/清理原则 |
+|---|---|---|
+| level/xp/growth | hero、members[id] | 局内持久，跨队伍/地图保留；刷新重建 |
+| owned/team | Engine | 收藏和最多六位当前伙伴；ID 不连续 |
+| tickets/coins | Engine | 库存，不与地上 drops 混用 |
+| upgrades / pendingWarp / summonReward | Engine | 统一奖励队列与召唤绑定，不能各窗口独立发奖 |
+| modal | Engine | 非空暂停模拟；详情另存 previous modal |
+| targetEnemy、cd、cast、attackDir、rejoining | 角色 | 战斗目标、冷却、动画锁向和跟随状态 |
+| projectiles / zones / fx / summons | Engine | 暂态攻击与表现；zones 同时含伤害和预警，不是纯视觉 |
+| trial | Engine | number/goal/spawned/killed/ticketsDropped/started/bossSpawned/cleared |
+| goldEffects / newFollowups / newPets / ascFields / ascSpread / fireflyBombs | Engine | 各系统负责更新、容量限制和清理 |
+| ascRun / leap / rageUntil / whiteUntil 等 | 角色 | 技能移动、变身与充能暂态；不能覆盖 growth |
 
-- `data.js` 保存初始角色，`expansion-data.js` 保存新增五星角色。
-- `engine.js` 持有 `hero`、`members`、`team`、`owned`、敌人、弹道、持续区和事件队列。
-- 通用战斗在 `combat-rules.js` 与 `local-combat.js`。
-- 机制较复杂的角色被拆分进 `combo.js`、`gold-combat.js`、`ascension-combat.js` 和 `firefly-combat.js`。
-- `render.js` 管理 Three.js 世界和角色 Sprite，Canvas 叠层负责更灵活的战斗特效。
+切图调用 clearGold、clearExpansion（含 clearAscension/clearFirefly），清理攻击数组并重置跟随；地图敌人等另存/恢复。换层恢复主角生命并清理战场，保留成长。不要在独立清理函数中重建整个 members，否则会丢牌。换人后各模块在 update 中过滤非队内 owner；已发射的部分旧弹体仍可完成命中，不等同于敌方死亡预警残留。
 
-### 成长牌
+## 奖励状态机的修改位置
 
-- `growth.js` 负责可用牌、抽取、满级移池、赋予成长和普通/黄金抽卡。
-- 初始角色牌在 `combo-cards.js`/`gold-evolutions.js`，新角色牌在 `expansion-data.js`。
-- `growth-tags.js` 提供黄金牌流派标签，`card-copy.js` 负责界面文案。
-- 角色成长存放在 `engine.members[id].growth`，换队或换地图不能清空。
+pickupTicket → receiveTickets → queueTicketGrowth/nextUpgrade → warp → recruit → reveal → finishSummon → nextUpgrade → chooseUpgrade。
 
-### 召唤与奖励
+recruit 消耗票、选择未拥有角色、绑定 queued ticket reward；finishSummon 负责把此奖励置前并清除引用；UI.requestRevealExit/RevealTiming 只负责演出何时放行。角色满池后的重新路由在 nextUpgrade 做，不能只在拾票瞬间过滤一次。chooseUpgrade 只接受当前 modal=upgrade 的队首，发牌后继续队列。首领奖励 advance 标记把选牌与换层连接；空黄金池仍必须推进。
 
-车票拾取会排入一次伙伴成长机会。若仍有未拥有角色，先播放召唤；动画和文字同时显示，演出结束后等待玩家任意确认，再进入该新角色的固定牌池。若全角色已拥有，则跳过召唤，直接按“队伍优先、场下补位”的规则抽成长牌。
+## 添加角色/卡牌
 
-### 地图与无尽层
+1. 分配不冲突的稳定 ID；先检查动画 ID 与宠物 ID，不能假定 CHARS.length+1 可用。
+2. 在对应数据模块写基本技能、5 普通/3 黄金。扩展池是在旧文案覆写后合入的，不能只改 combo-cards 期待新增角色生效。
+3. 确定由旧 growth、expansion 还是 ascension 调度。REWORKED 中的角色会先走 ascension，expansion 里同 ID 的旧代码可能不可达。
+4. 增加命中/观察/死亡/清理路径；处理 boss、sleeping boss、generated/secondary 递归标记。
+5. 卡牌无前置也需能独立工作；最高三级；补齐 growth-tags，黄金标签 2–4 个且无重复。
+6. 更新图集、裁切脚底坐标、portrait、UI 展示和所有素材加载映射。
+7. 加入范围、无战前开火、冻结/斩杀首领保护、暂停、换人、切图的目标测试。不要只断言“函数能运行”。
+8. 修改生成器中显式的 21/186 数量保护，再生成角色/牌表和校验摘要。更新手册和开发日志。
 
-- `world.js` 定义初始地图、交互点、敌营和右侧首领。
-- `map-layouts.js` 定义第二地图的视觉布局。
-- `trial.js` 负责无尽层目标、四向刷怪、兵种、首领和层级推进。
-- `balance.js` 是经验、掉落和层级倍率的主要数值入口。
+## 修改特效
 
-## 4. 当前关键数值
+先确认伤害是在 zones、projectiles、goldEffects 还是 fx 中结算，再改 renderer。删除绘制不等于删除机制；反之删整个区域对象可能让伤害/治疗消失。旧金卡的 invisible 标记正是“保留判定、隐藏大领域”的实现。新角色 fireRing 等另有路径，不能用旧渲染器的规则推断。
 
-| 项目 | 当前值 |
-| --- | --- |
-| 初始地图普通敌人车票率 | 5% |
-| 无尽地图普通敌人车票率 | 1% |
-| 无尽层基础车票上限 | 12，随层数翻倍 |
-| 初始地图首领生命 | 3,600 |
-| 无尽首领基础生命 | 15,000，逐层 ×5 |
-| 普通敌人经验 | 10 |
-| 伙伴等级上限 | 8 |
-| 无尽场上存活敌人软上限 | 110 |
-| 主角 15–24 级升级经验 | 900 / 级 |
-| 主角 25 级后升级经验 | 从 1,500 起，每级翻倍 |
+使用游戏时间驱动战斗；真实时间只用于 UI/演出/小游戏。限制递归链和活跃对象，防止高级构筑爆炸式生成对象。容量/代数限制见 COMBAT。
 
-如修改这些数值，应同步检查 `tests/late-balance.mjs`、`tests/v06.mjs` 和 `tests/reward-pools.mjs`。
+## 文档维护
 
-## 5. 不能破坏的交互规则
-
-1. **召唤必定接成长牌。** 召唤动画结束后，点击画面、按钮或关闭操作都必须进入成长牌选择，不能丢奖励。
-2. **移动不打断施法。** 技能动画优先，技能完成后才恢复行走帧；逻辑移动仍可继续。
-3. **索敌不等于全图开战。** 远距离弹道可以飞远，但在进入战斗前不应自动轰炸地图另一端。
-4. **特效服务于判定。** 预警、冰冻、破韧和范围攻击需要清晰，但不允许常驻大领域或密集波纹遮住角色。
-5. **首领不吃硬冻结。** 冻结只延长首领攻击间隔；普通敌人必须真正停止行动。
-6. **成长必须保留。** 换队、切图、倒下回城不能清空角色的成长牌。
-
-## 6. 测试与验收
-
-完整自动化：
-
-```bash
-npm ci
-npm test
-npm run build
-```
-
-浏览器走查清单：
-
-- 首次加载无 404，硬件加速开启时场景可见。
-- WASD、点击移动、闪避、主动攻击和互动正常。
-- 伙伴跟随流畅，进入战斗后各自接敌，战后重新归队。
-- 车票可见且旋转，拾取后召唤 → 确认 → 成长牌流程不可跳失。
-- 全角色拥有后的车票仍出现成长牌。
-- 主角升级池和队伍切换同步更新。
-- 暂停/切后台时战斗、持续伤害和计时器停止。
-- 初始首领接触即启动，击败后任务完成并可进入无尽试炼。
-- 无尽层达到目标数后停止出怪，只生成一个首领；胜利后黄金牌奖励并进入下一层。
-- 移动端窄屏下成长牌改为单列，文字和按钮可点。
-
-## 7. 已知限制和技术债
-
-- 没有存档、音频资源和设置持久化。
-- `engine.js` 与 `ui.js` 仍偏大，继续扩展时应拆分状态机和界面控制器。
-- 角色图片和部分立绘属于同人项目引用素材，公开仓库/公开站点存在版权与平台政策风险。
-- 精灵表切帧仍包含逐角色校准数据，新增动画必须实际检查脚底锚点和帧边界。
-- 首屏资源未分包，低速网络首次打开可能较慢；下一阶段可使用动态导入和资源压缩。
-- 自动化测试以逻辑为主，尚未加入 Playwright 端到端和截图回归。
-
-## 8. 建议的下一阶段
-
-1. 加入 `localStorage` 版本化存档，并提供“清除存档”。
-2. 把 `Engine` 的召唤/成长、战斗、地图旅行拆成独立系统。
-3. 加入 Playwright：覆盖加载、召唤后成长、切图和无尽层推进。
-4. 建立资源清单与可替换的原创/授权素材管线。
-5. 做音量、画质、减少动态效果和色盲友好设置。
-6. 对首屏图像做 WebP/AVIF 与懒加载，减少公开网页的首次加载时间。
-
-## 9. 给下一位 AI 的启动提示
-
-可将下面这段直接交给下一位 AI：
-
-> 这是《星轨·失落的回声》v0.9.3。先完整阅读根目录 `AGENTS.md`、`README.md` 和 `docs/HANDOFF.md`，再检查 `git status`。保留即时自动战斗、六人队伍、召唤后必得成长牌、每角色 5 普通 + 3 黄金且最高 3 级、普通敌人硬冻结而首领只减缓攻击等规则。改动应优先做机制 Combo，避免纯数值卡、全屏常驻特效和未进战斗的超远打击。为需求补测试，运行 `npm test` 和 `npm run build`，实际浏览器走查后更新 `docs/DEVLOG.md`。不要覆盖用户已有改动，不要提交构建产物和临时文件。
-
-## 10. 发布与回滚
-
-- `main` 是公开发布分支。
-- `.github/workflows/pages.yml` 在每次推送时执行测试、构建并部署 `build/`。
-- GitHub Pages 构建失败时，先检查 Actions 日志；不要绕过失败测试强行发布。
-- 回滚应使用 Git 的 revert 提交，避免重写公开分支历史。
-- 当前 Sites 在线版有独立远端；保留原 `origin`，GitHub 建议使用单独的 `github` remote，避免误覆盖既有发布流程。
+CARDS/CHARACTERS/BALANCE/HISTORY/source-manifest 为生成物。history.json 是原始仓库一次性归档，正常更新不重新抓取。新提交写 DEVLOG；生成器 --capture-history 仅原始仓库有意义。人工文档与生成数据出现矛盾时，检查实际代码和断言，记录偏差，不靠修改文档伪造实现。
